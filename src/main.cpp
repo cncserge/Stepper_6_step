@@ -1,29 +1,43 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <Keypad.h>
+#include <AccelStepper.h>
+
 /* lcd connect
-RS  -> 10
-RW  -> 11
-EN  -> 13
-RST -> 12
+RS  -> 17
+RW  -> 19
+EN  -> 18
+RST -> 20 - 
 BLA -> 3v3
 PCB -> GND
 */
-
-void oneStepPage(void);
+/*
+LCD_RS = Pin(17) # RS / CS -> green
+LCD_E = Pin(18) #E / SCK -> orange
+LCD_RW = Pin(19) # RW / MOSI -> yellow
+*/
+const int pinStep = 14;
+const int pinDir  = 15;
+const int pinEndStop = 12;
+float speedHome = 5000;
+float speedRun  = 12000;
+AccelStepper motor(AccelStepper::DRIVER, pinStep, pinDir);
+void runPage(void);
 void allStepPage(void);
 void navigationPrc(void);
-enum{page_all, page_step};
-enum{mode_run, mode_stop, mode_edit};
+enum{page_all, page_run};
+enum{mode_run, mode_edit};
+bool debug = true;
 
-
-//U8G2_ST7920_128X64_F_HW_SPI lcd (U8G2_R0, 10, 12);
-U8G2_ST7920_128X64_1_HW_SPI lcd (U8G2_R0, 10, 12);
+U8G2_ST7920_128X64_F_HW_SPI lcd (U8G2_R0, 17, 20);
+//U8G2_ST7920_128X64_1_HW_SPI lcd (U8G2_R0, 17, 12);
 bool blink;
 int  currentEditStep = 0;
+int  currentRunStep = 0;
 int pageCurrent;
 int mode;
 double stepsValue[6];
+const long pulseStepMm = 3200;// задаем количество импульсов на милиметр движения
 char key;
 char hexaKeys[4][4] = {
   {'1','2','3','A'},
@@ -36,15 +50,22 @@ byte colPins[4] = {2, 3, 4, 5}; //connect to the column pinouts of the keypad
 Keypad keyPad = Keypad( makeKeymap(hexaKeys), rowPins, colPins, 4, 4); 
 
 
+
 void setup() {
+  pinMode(pinEndStop, INPUT_PULLUP);
+  motor.setMaxSpeed(15000);
+  motor.setAcceleration(10000);
   Serial.begin(9600);
   //lcd.setBusClock(500000); 
   lcd.begin();
   lcd.enableUTF8Print();
-  pageCurrent = page_step;
+  pageCurrent = page_all;
   mode = mode_edit;
-  for(int i = 0; i < 6; i ++)
-    stepsValue[i] = i + 0.1;
+  if(debug){
+    for(int i = 0; i < 6; i ++)
+      stepsValue[i] = i + 1;
+  }
+
 }
 
 void loop() {
@@ -52,7 +73,7 @@ void loop() {
 
   do {
     if(pageCurrent == page_all)  allStepPage();
-    if(pageCurrent == page_step) oneStepPage();
+    if(pageCurrent == page_run) runPage();
   }while ( lcd.nextPage() );
 
 
@@ -70,6 +91,22 @@ void loop() {
   }
 
   key = keyPad.getKey();
+  if(debug){
+    if(key != NO_KEY){
+      Serial.println(key);
+    }
+  }
+
+
+
+  if(mode == mode_edit){
+    pageCurrent = page_all;
+  }
+  else{
+    pageCurrent = page_run;
+  }
+
+
   
   navigationPrc();
 
@@ -77,26 +114,96 @@ void loop() {
 }
 
 void navigationPrc(void){
-  static int firstEdit = 0;
-  static String tempStr;
+  {
+    if(mode == mode_run){
+      {
+        if(key == 'D'){
+          motor.setSpeed(speedHome);
+          motor.setCurrentPosition(0);
+          motor.moveTo(-(pulseStepMm * 10));
+          while(1){
+            motor.run();
+            if(digitalRead(pinEndStop) == LOW){
+              motor.stop();
+              motor.setCurrentPosition(0);
+              break;
+            }
+            if(!motor.isRunning()){
+              break; // not signal end stop
+            }
+          }
+        }
+      }
+      {
+        if(key == 'C'){
+          currentRunStep = 0;
+          motor.setCurrentPosition(0);
+        }
+      }
+      {
+        static bool moveToHome = false;
+        if(key == 'A'){
+          motor.setSpeed(speedRun);
+          motor.moveTo(stepsValue[currentRunStep] * pulseStepMm);
 
-  if(firstEdit == 0) tempStr = "";
-
-  if(key == 'A' && currentEditStep > 0){
-    currentEditStep --;
-    firstEdit = 0;
+          if(abs(stepsValue[currentRunStep]) < 0.1){
+            moveToHome = true;
+          }
+          if(currentRunStep == 6){
+            moveToHome = true;
+          }
+          if(moveToHome){
+            currentRunStep = 0;
+            motor.moveTo(0 * pulseStepMm);  
+          }
+          while(1){
+            motor.run();
+            if(!motor.isRunning()){
+              if(!moveToHome)
+                currentRunStep++;
+              moveToHome = false;
+              break;
+            }
+          }
+        }
+      }
+    }
   }
-  if(key == 'B' && currentEditStep < 5){
-    currentEditStep ++;
-    firstEdit = 0;
-  }
 
-  if(mode == mode_edit){
-    if(tempStr.toDouble() < 1000.0){
-      if(key >= '0' && key <= '9'){
-        Serial.println(tempStr.indexOf('.'));
-        firstEdit++;
-        tempStr += key;
+  {
+    if(key == '#'){
+      if(mode == mode_edit){
+        mode = mode_run;
+      }
+      else if(mode == mode_run){
+        mode = mode_edit;
+      }
+    }
+  }
+  {
+    static int firstEdit = 0;
+    static String tempStr = "";
+
+    if(mode == mode_edit){
+
+      if(firstEdit == 0) tempStr = "";
+
+      if(key == 'A' && currentEditStep > 0){
+        currentEditStep --;
+        firstEdit = 0;
+      }
+      if(key == 'B' && currentEditStep < 5){
+        currentEditStep ++;
+        firstEdit = 0;
+      }
+
+
+      if(tempStr.toDouble() < 999.0){
+        if(key >= '0' && key <= '9'){
+          Serial.println(tempStr.indexOf('.'));
+          firstEdit++;
+          tempStr += key;
+        }
       }
       if(key == '*'){
         if(tempStr.indexOf('.') == -1){
@@ -104,37 +211,34 @@ void navigationPrc(void){
           tempStr += '.';
         }
       }
+      if(key == 'C'){
+        tempStr = "";
+        stepsValue[currentEditStep] = 0;
+      }  
+
+      if(key != NO_KEY){
+        if(firstEdit > 0){
+          stepsValue[currentEditStep] = tempStr.toDouble();
+        }   
+      }
     }
-
-    if(key == 'C'){
+    else{
+      firstEdit = 0;
       tempStr = "";
-      stepsValue[currentEditStep] = 0;
-    }  
-
-    if(key != NO_KEY){
-      if(firstEdit > 0){
-        stepsValue[currentEditStep] = tempStr.toDouble();
-      }   
     }
   }
-
-
-
-
-
-
-
-
-
-
 }
 
-void oneStepPage(void){
+
+void runPage(void){
   lcd.setFont(u8g2_font_6x13B_t_cyrillic);
-  lcd.drawUTF8(40, 10, String("Крок - " + String(currentEditStep + 1)).c_str());
+  if(currentRunStep < 6)
+    lcd.drawUTF8(40, 10, String("Крок - " + String(currentRunStep + 1)).c_str());
+  else
+    lcd.drawUTF8(40, 10, "Крок - ZERO");
   lcd.setFont(u8g2_font_inb24_mn);
   lcd.setCursor(0, 42);
-  lcd.print(stepsValue[currentEditStep], 1);
+  lcd.print(motor.currentPosition() / (double)pulseStepMm, 1);
 }
 
 void allStepPage(void){
