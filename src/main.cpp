@@ -19,6 +19,12 @@ LCD_RW = Pin(19) # RW / MOSI -> yellow
 const int pinStep = 14;
 const int pinDir  = 15;
 const int pinEndStop = 12;
+
+const int pinNextStep = 10;
+const int pinZero     = 11;
+const int pinToHome   = 13;
+
+
 float speedHome = 5000;
 float speedRun  = 12000;
 AccelStepper motor(AccelStepper::DRIVER, pinStep, pinDir);
@@ -52,6 +58,9 @@ Keypad keyPad = Keypad( makeKeymap(hexaKeys), rowPins, colPins, 4, 4);
 
 
 void setup() {
+  pinMode(pinNextStep , INPUT_PULLUP);
+  pinMode(pinZero     , INPUT_PULLUP);
+  pinMode(pinToHome   , INPUT_PULLUP);
   pinMode(pinEndStop, INPUT_PULLUP);
   motor.setMaxSpeed(15000);
   motor.setAcceleration(10000);
@@ -117,7 +126,7 @@ void navigationPrc(void){
   {
     if(mode == mode_run){
       {
-        if(key == 'D'){
+        if(key == 'D' || digitalRead(pinToHome) == LOW){
           motor.setSpeed(speedHome);
           motor.setCurrentPosition(0);
           motor.moveTo(-(pulseStepMm * 10));
@@ -135,14 +144,14 @@ void navigationPrc(void){
         }
       }
       {
-        if(key == 'C'){
+        if(key == 'C' || digitalRead(pinZero) == LOW){
           currentRunStep = 0;
           motor.setCurrentPosition(0);
         }
       }
       {
         static bool moveToHome = false;
-        if(key == 'A'){
+        if(key == 'A' || digitalRead(pinNextStep) == LOW){
           motor.setSpeed(speedRun);
           motor.moveTo(stepsValue[currentRunStep] * pulseStepMm);
 
