@@ -2,7 +2,7 @@
 #include <U8g2lib.h>
 #include <Keypad.h>
 #include <AccelStepper.h>
-
+#include "trig.h"
 /* lcd connect
 RS  -> 17
 RW  -> 19
@@ -55,7 +55,7 @@ byte rowPins[4] = {6, 7, 8, 9}; //connect to the row pinouts of the keypad
 byte colPins[4] = {2, 3, 4, 5}; //connect to the column pinouts of the keypad
 Keypad keyPad = Keypad( makeKeymap(hexaKeys), rowPins, colPins, 4, 4); 
 
-
+Trig nextStep(pinNextStep, 200UL, millis());
 
 void setup() {
   pinMode(pinNextStep , INPUT_PULLUP);
