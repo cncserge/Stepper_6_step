@@ -1,25 +1,26 @@
+// encoding UTF_8
 #ifndef _TRIG_H_
 #define _TRIG_H_
 #include <Arduino.h>
 
 class Trig{
     public:
-    explicit Trig(int pin, const unsigned long timeout, unsigned long millis): pin(pin), timeout(timeout){
+    explicit Trig(const unsigned long timeout, unsigned long millis):  timeout(timeout){
         preMillis = millis;
         out = false;
+        preState = true;
     }
-    void run(unsigned long millis){
-       if(millis - preMillis >= timeout){
-            preMillis = millis;
-            out = false;
-            int readPin = digitalRead(pin);
-            if(preState != readPin){
-                preState = readPin;
-                if(!readPin){
-                    out = true;
+    void run(unsigned long millis, int state){
+        out = false;
+        if(millis - preMillis >= timeout){
+                preMillis = millis;
+                if(preState != state){
+                    preState = state;
+                    if(state){
+                        out = true;
+                    }
                 }
-            }
-       } 
+        } 
     }
     bool get(void){
         return out;
@@ -27,7 +28,6 @@ class Trig{
     private:
         bool                out;
         bool                preState;
-        int                 pin;
         const unsigned long timeout;
         unsigned long       preMillis;
 };

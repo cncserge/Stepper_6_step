@@ -1,3 +1,4 @@
+// encoding UTF_8
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <Keypad.h>
@@ -23,6 +24,11 @@ const int pinEndStop = 12;
 const int pinNextStep = 10;
 const int pinZero     = 11;
 const int pinToHome   = 13;
+
+
+Trig trigNext(200, millis());
+Trig trigZero(200, millis());
+Trig trigHome(200, millis());
 
 
 float speedHome = 5000;
@@ -55,7 +61,6 @@ byte rowPins[4] = {6, 7, 8, 9}; //connect to the row pinouts of the keypad
 byte colPins[4] = {2, 3, 4, 5}; //connect to the column pinouts of the keypad
 Keypad keyPad = Keypad( makeKeymap(hexaKeys), rowPins, colPins, 4, 4); 
 
-Trig nextStep(pinNextStep, 200UL, millis());
 
 void setup() {
   pinMode(pinNextStep , INPUT_PULLUP);
@@ -74,10 +79,18 @@ void setup() {
     for(int i = 0; i < 6; i ++)
       stepsValue[i] = i + 1;
   }
-
+  while(1){
+    Serial.println("test");
+    delay(1000);
+  }
+  
 }
 
 void loop() {
+  trigNext.run(millis(), digitalRead(pinNextStep));
+  trigHome.run(millis(), digitalRead(pinToHome));
+  trigZero.run(millis(), digitalRead(pinZero));
+
   lcd.firstPage();
 
   do {
@@ -126,7 +139,7 @@ void navigationPrc(void){
   {
     if(mode == mode_run){
       {
-        if(key == 'D' || digitalRead(pinToHome) == LOW){
+        if(key == 'D' || trigHome.get()){
           motor.setSpeed(speedHome);
           motor.setCurrentPosition(0);
           motor.moveTo(-(pulseStepMm * 10));
@@ -144,14 +157,14 @@ void navigationPrc(void){
         }
       }
       {
-        if(key == 'C' || digitalRead(pinZero) == LOW){
+        if(key == 'C' || trigZero.get()){
           currentRunStep = 0;
           motor.setCurrentPosition(0);
         }
       }
       {
         static bool moveToHome = false;
-        if(key == 'A' || digitalRead(pinNextStep) == LOW){
+        if(key == 'A' || trigNext.get()){
           motor.setSpeed(speedRun);
           motor.moveTo(stepsValue[currentRunStep] * pulseStepMm);
 
