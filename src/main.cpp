@@ -79,10 +79,6 @@ void setup() {
     for(int i = 0; i < 6; i ++)
       stepsValue[i] = i + 1;
   }
-  while(1){
-    Serial.println("test");
-    delay(1000);
-  }
   
 }
 
