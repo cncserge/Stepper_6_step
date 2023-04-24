@@ -49,7 +49,7 @@ int  currentRunStep = 0;
 int pageCurrent;
 int mode;
 double stepsValue[6];
-const long pulseStepMm = 3200;// задаем количество импульсов на милиметр движения
+const long pulseStepMm = 640;// задаем количество импульсов на милиметр движения
 char key;
 char hexaKeys[4][4] = {
   {'1','2','3','A'},
@@ -77,7 +77,7 @@ void setup() {
   mode = mode_edit;
   if(debug){
     for(int i = 0; i < 6; i ++)
-      stepsValue[i] = i + 1;
+      stepsValue[i] = 0;
   }
   
 }
@@ -134,6 +134,54 @@ void loop() {
 void navigationPrc(void){
   {
     if(mode == mode_run){
+      { // add moving
+        int move = 0;
+        if(key == '1'){ // + 10
+          move = pulseStepMm * 10;
+        }
+        if(key == '2'){ // + 1
+          move = pulseStepMm * 1;
+        }
+        if(key == '3'){ // + 0.1
+          move = pulseStepMm * 0.1;
+        }
+        if(key == '4'){ // - 10
+          move = -(pulseStepMm * 10);
+        }
+        if(key == '5'){ // - 1
+          move = -(pulseStepMm * 1);
+        }
+        if(key == '6'){ // - 0.1
+          move = -(pulseStepMm * 0.1);
+        }
+        if(move != 0){
+          currentRunStep = 0;
+          motor.setCurrentPosition(0);
+          motor.moveTo(move);
+          while(1){
+            motor.run();
+            if(!motor.isRunning()){
+              motor.setCurrentPosition(0);
+              break;
+            }
+          }
+        }
+      }
+
+
+
+      {
+        if(key == 'B'){
+          currentRunStep = 0;
+          motor.moveTo(stepsValue[currentRunStep] * pulseStepMm);  
+          while(1){
+            motor.run();
+            if(!motor.isRunning()){
+              break;
+            }
+          }
+        }
+      }
       {
         if(key == 'D' || trigHome.get()){
           motor.setSpeed(speedHome);
@@ -172,7 +220,7 @@ void navigationPrc(void){
           }
           if(moveToHome){
             currentRunStep = 0;
-            motor.moveTo(0 * pulseStepMm);  
+            motor.moveTo(stepsValue[currentRunStep] * pulseStepMm);  
           }
           while(1){
             motor.run();
