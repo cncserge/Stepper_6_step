@@ -167,9 +167,6 @@ void navigationPrc(void){
           }
         }
       }
-
-
-
       {
         if(key == 'B'){
           currentRunStep = 0;
@@ -177,6 +174,7 @@ void navigationPrc(void){
           while(1){
             motor.run();
             if(!motor.isRunning()){
+              currentRunStep++;
               break;
             }
           }
@@ -227,6 +225,9 @@ void navigationPrc(void){
             if(!motor.isRunning()){
               if(!moveToHome)
                 currentRunStep++;
+              if(moveToHome){
+                currentRunStep++;
+              }
               moveToHome = false;
               break;
             }
