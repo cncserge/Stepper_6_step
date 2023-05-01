@@ -299,10 +299,10 @@ void navigationPrc(void){
 
 void runPage(void){
   lcd.setFont(u8g2_font_6x13B_t_cyrillic);
-  if(currentRunStep < 6)
-    lcd.drawUTF8(40, 10, String("Крок - " + String(currentRunStep + 1)).c_str());
-  else
-    lcd.drawUTF8(40, 10, "Крок - ZERO");
+  // if(currentRunStep < 6)
+  //   lcd.drawUTF8(40, 10, String("Крок - " + String(currentRunStep + 1)).c_str());
+  // else
+  //   lcd.drawUTF8(40, 10, "Крок - ZERO");
   lcd.setFont(u8g2_font_inb24_mn);
   lcd.setCursor(0, 42);
   lcd.print(motor.currentPosition() / (double)pulseStepMm, 1);
